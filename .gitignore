@@ -1,0 +1,4 @@
+
+.project/
+.env
+__pycache__/
