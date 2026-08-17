@@ -1,11 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import LoginSerializer
+from rest_framework_simplejwt.exceptions import TokenError
+from .serializers import LoginSerializer, LogoutSerializer
 
 # =======================================
-#        LOGIN, LOGOUT, DELETE
+#         LOGIN, LOGOUT, DELETE
 # =======================================
 
 class LoginAPIView(APIView):
@@ -28,3 +30,42 @@ class LoginAPIView(APIView):
                 'role': user.role,
             }
         }, status=status.HTTP_200_OK)
+
+# ----------------------------------------->
+
+class LogoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = LogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            refresh_token = serializer.validated_data['refresh']
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Tokenni qora ro'yxatga kiritadi
+
+            return Response(
+                {"detail": "Tizimdan muvaffaqiyatli chiqdingiz."}, 
+                status=status.HTTP_205_RESET_CONTENT
+            )
+        except TokenError:
+            return Response(
+                {"detail": "Yaroqsiz yoki allaqachon ishlatilgan token!"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+# ----------------------------------------->
+
+class DeleteAccountAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+
+        user.delete()
+
+        return Response(
+            {"detail": "Hisobingiz muvaffaqiyatli o'chirildi."}, 
+            status=status.HTTP_204_NO_CONTENT
+        )
