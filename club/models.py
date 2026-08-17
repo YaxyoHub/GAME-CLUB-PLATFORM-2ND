@@ -1,8 +1,6 @@
 ﻿import uuid
 from django.db import models
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
+from authentication.models import User
 
 
 class Club(models.Model):
@@ -42,6 +40,10 @@ class Club(models.Model):
     working_hours_to = models.TimeField(verbose_name='Ish vaqti (tugash)')
     is_active = models.BooleanField(default=True, verbose_name='Faolmi?')
 
+    created_at = models.DateField(
+        auto_now_add=True
+    )
+
     class Meta:
         verbose_name = 'Klub'
         verbose_name_plural = 'Klublar'
@@ -50,13 +52,33 @@ class Club(models.Model):
     def __str__(self):
         return f"{self.name} ({self.city})"
 
+class Images(models.Model):
+    club = models.ForeignKey(
+        Club, on_delete=models.CASCADE
+    )
+    image = models.ImageField(
+        upload_to='club-profiles/'
+    )
+    created_at = models.DateField(
+        auto_now_add=True
+    )
+
+class Type_Seat(models.Model):
+    club = models.ForeignKey(
+        Club,
+        on_delete=models.CASCADE
+    )
+    type_title = models.CharField(max_length=20)
+
+class Type_Room(models.Model):
+    club = models.ForeignKey(
+        Club,
+        on_delete=models.CASCADE
+    )
+    type_title = models.CharField(max_length=20)
+
 
 class Seat(models.Model):
-
-    class SeatType(models.TextChoices):
-        PS = 'ps', 'PlayStation'
-        PC = 'pc', 'PC'
-
     id = models.UUIDField(
         default=uuid.uuid4,
         editable=False,
@@ -70,10 +92,13 @@ class Seat(models.Model):
         verbose_name='Klub'
     )
     name = models.CharField(max_length=100, verbose_name='Nomi')
-    type = models.CharField(
-        max_length=2,
-        choices=SeatType.choices,
-        verbose_name='Turi'
+    type_seat = models.ForeignKey(
+        Type_Seat,
+        on_delete=models.CASCADE
+    )
+    type_room = models.ForeignKey(
+        Type_Room,
+        on_delete=models.CASCADE
     )
     hourly_price = models.DecimalField(
         max_digits=10,
@@ -89,7 +114,7 @@ class Seat(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.name} ({self.get_type_display()}) - {self.club.name}"
+        return f"{self.name} ({self.type_seat()}) - {self.club.name}"
 
 
 class Booking(models.Model):
