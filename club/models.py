@@ -144,14 +144,17 @@ class Booking(models.Model):
     )
     date = models.DateField(verbose_name='Sana')
     start_time = models.TimeField(verbose_name='Boshlanish vaqti')
-    end_time = models.TimeField(verbose_name='Tugash vaqti')
+    end_time = models.TimeField(verbose_name='Tugash vaqti',
+                                null=True,
+                                blank=True)
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
         default=Status.BOOKED,
         verbose_name='Holat'
     )
-    payment_method = models.CharField(max_length=50, verbose_name="To'lov usuli")
+    payment_method = models.CharField(max_length=50, verbose_name="To'lov usuli",
+                                      null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Yaratilgan vaqt')
 
     class Meta:

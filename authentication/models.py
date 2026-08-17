@@ -10,10 +10,7 @@ class CustomUserManager(BaseUserManager):
             raise ValueError("Telefon raqami kiritilishi shart: ")
         
         user = self.model(phone_number=phone_number, **extra_fields)
-        if password:
-            user.set_password(password)
-        else:
-            user.set_unusable_password()
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -61,31 +58,23 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['full_name']
 
     def __str__(self):
-        return f"{self.phone_number} - {self.role}"
+        return f"{self.phone_number} - {self.full_name} - {self.role}"
     
-class Type(models.Model):
-    TYPE_CHOICES = [
-        ('ps', 'PlayStation'),
-        ('pc', 'PC'),
-    ]
-
-    club_id = models.IntegerField()  # Yoki ForeignKey('Club', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    hourly_price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
-    is_booked = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"{self.name} ({self.type})"
-
 
 class OtpCode(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE
+    )
     phone_number = models.CharField(max_length=13)
     code = models.CharField(max_length=6)
     is_used = models.BooleanField(default=False)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def generate_code(self):
+        import random
+        new_code = str(random.randint(100000, 999999))
+        return new_code
 
     def is_valid(self):
         """Kodni hali amal qilayotgani va ishlatilmaganini tekshirish"""
