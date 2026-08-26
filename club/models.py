@@ -114,7 +114,7 @@ class Seat(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.name} ({self.type_seat()}) - {self.club.name}"
+        return f"{self.name} ({self.type_seat}) - {self.club.name}"
 
 
 class Booking(models.Model):
