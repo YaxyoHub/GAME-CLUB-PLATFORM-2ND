@@ -11,23 +11,30 @@ from authentication.views import (
 )
 
 from club.views import (
-    ClubListView, ClubCreateView, ClubUpdateByManagerView,
-    ClubUpdateBySuperAdminView, ClubDeleteView, ClubByCityView,
+    ClubListView, 
+    ClubCreateView, 
+    ClubUpdateByManagerView,
+    ClubUpdateBySuperAdminView, 
+    ClubDeleteView, 
+    ClubByCityView,
     ClubByLocationView
 )
 
 urlpatterns = [
-    # qodir
-    path('login/', LoginAPIView.as_view()),
-    path('logout/', LogoutAPIView.as_view()),
-    path('logout-delete/', DeleteAccountAPIView.as_view()),
+    # Qodir lee
+    path('login/', LoginAPIView.as_view(), name='login'),
+    path('logout/', LogoutAPIView.as_view(), name='logout'),
+    path('logout-delete/', DeleteAccountAPIView.as_view(), name='logout-delete'),
 
-    # bexa
-    path('clubs/', ClubListView.as_view()),
-    path('clubs/create/', ClubCreateView.as_view()),
-    path('clubs/<uuid:pk>/update/manager/', ClubUpdateByManagerView.as_view()),
-    path('clubs/<uuid:pk>/update/admin/', ClubUpdateBySuperAdminView.as_view()),
-    path('clubs/<uuid:pk>/delete/', ClubDeleteView.as_view()),
-    path('clubs/city/<str:city>/', ClubByCityView.as_view()),
-    path('clubs/by-location/', ClubByLocationView.as_view()),
+    # Bexruzbek
+
+    # Club List & Special Queries (Statik va maxsus routelar tepada)
+    path('clubs/', ClubListView.as_view(), name='club-list'),
+    path('clubs/create/', ClubCreateView.as_view(), name='club-create'),
+    path('clubs/by-location/', ClubByLocationView.as_view(), name='club-by-location'),
+    path('clubs/city/<str:city>/', ClubByCityView.as_view(), name='club-by-city'),
+    # Club Detail / Actions (UUID parametrli routelar pastda)
+    path('clubs/<uuid:pk>/update/manager/', ClubUpdateByManagerView.as_view(), name='club-update-manager'),
+    path('clubs/<uuid:pk>/update/admin/', ClubUpdateBySuperAdminView.as_view(), name='club-update-admin'),
+    path('clubs/<uuid:pk>/delete/', ClubDeleteView.as_view(), name='club-delete'),
 ]

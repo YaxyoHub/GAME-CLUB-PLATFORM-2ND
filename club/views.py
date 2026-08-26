@@ -1,69 +1,117 @@
 from math import radians, cos, sin, asin, sqrt
-from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
+from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from .models import Club
 from .serializers import ClubSerializer
 
-# 1. SEE ALL CLUBS (Faqat ro'yxatdan o'tganlar ko'ra oladi)
-class ClubListView(generics.ListAPIView):
-    queryset = Club.objects.filter(is_active=True)
-    serializer_class = ClubSerializer
+
+# 1. SEE ALL CLUBS
+class ClubListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def get(self, request, *args, **kwargs):
+        clubs = Club.objects.filter(is_active=True)
+        serializer = ClubSerializer(clubs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-# 2. CREATE CLUB (Klub yaratish)
-class ClubCreateView(generics.CreateAPIView):
-    queryset = Club.objects.all()
-    serializer_class = ClubSerializer
+
+# 2. CREATE CLUB
+class ClubCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+    def post(self, request, *args, **kwargs):
+        serializer = ClubSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(owner=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 3. UPDATE CLUB BY MANAGER/OWNER
-class IsClubOwner(permissions.BasePermission):
-    """Klubni faqat uning haqiqiy egasi tahrirlashi uchun cheklov"""
-    def has_object_permission(self, request, view, obj):
-        return obj.owner == request.user
+class ClubUpdateByManagerView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-class ClubUpdateByManagerView(generics.UpdateAPIView):
-    queryset = Club.objects.all()
-    serializer_class = ClubSerializer
-    permission_classes = [permissions.IsAuthenticated, IsClubOwner]
-    lookup_field = 'pk'
+    def put(self, request, pk, *args, **kwargs):
+        club = get_object_or_404(Club, pk=pk)
+        
+        # Egalik huquqini tekshirish
+        if club.owner != request.user:
+            return Response(
+                {"detail": "Sizda ushbu klubni tahrirlash huquqi yo'q."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        serializer = ClubSerializer(club, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, *args, **kwargs):
+        club = get_object_or_404(Club, pk=pk)
+        
+        if club.owner != request.user:
+            return Response(
+                {"detail": "Sizda ushbu klubni tahrirlash huquqi yo'q."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        serializer = ClubSerializer(club, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 4. UPDATE CLUB BY SUPERADMIN
-class ClubUpdateBySuperAdminView(generics.UpdateAPIView):
-    queryset = Club.objects.all()
-    serializer_class = ClubSerializer
+class ClubUpdateBySuperAdminView(APIView):
     permission_classes = [permissions.IsAdminUser]
-    lookup_field = 'pk'
+
+    def put(self, request, pk, *args, **kwargs):
+        club = get_object_or_404(Club, pk=pk)
+        serializer = ClubSerializer(club, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk, *args, **kwargs):
+        club = get_object_or_404(Club, pk=pk)
+        serializer = ClubSerializer(club, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 5. DELETE CLUB
-class ClubDeleteView(generics.DestroyAPIView):
-    queryset = Club.objects.all()
-    serializer_class = ClubSerializer
+class ClubDeleteView(APIView):
     permission_classes = [permissions.IsAdminUser]
-    lookup_field = 'pk'
+
+    def delete(self, request, pk, *args, **kwargs):
+        club = get_object_or_404(Club, pk=pk)
+        club.delete()
+        return Response(
+            {"message": "Klub muvaffaqiyatli o'chirildi."},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
-# 6. SEE CLUB BY CITY (Faqat ro'yxatdan o'tganlar ko'ra oladi)
-class ClubByCityView(generics.ListAPIView):
-    serializer_class = ClubSerializer
+# 6. SEE CLUB BY CITY
+class ClubByCityView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        city_name = self.kwargs.get('city')
-        return Club.objects.filter(city__icontains=city_name, is_active=True)
+    def get(self, request, city, *args, **kwargs):
+        clubs = Club.objects.filter(city__icontains=city, is_active=True)
+        serializer = ClubSerializer(clubs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# 7. SEE CLUB BY LAT LONG (Faqat ro'yxatdan o'tganlar ko'ra oladi)
-class ClubByLocationView(generics.GenericAPIView):
-    serializer_class = ClubSerializer
+# 7. SEE CLUB BY LAT LONG
+class ClubByLocationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -100,7 +148,7 @@ class ClubByLocationView(generics.GenericAPIView):
             km = 6371 * c
 
             if km <= max_distance:
-                serializer = self.get_serializer(club)
+                serializer = ClubSerializer(club)
                 club_data = serializer.data
                 club_data['calculated_distance_km'] = round(km, 2)
                 nearby_clubs.append(club_data)
