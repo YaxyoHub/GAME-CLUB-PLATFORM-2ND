@@ -3,6 +3,8 @@ from django.db import models
 from authentication.models import User
 
 
+# MODELLAR TUGIRLANSIN
+
 class Club(models.Model):
     id = models.UUIDField(
         default=uuid.uuid4,

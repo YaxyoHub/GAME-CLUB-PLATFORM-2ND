@@ -139,6 +139,8 @@ class ClubByLocationView(APIView):
             lat2 = float(club.latitude)
             lon2 = float(club.longitude)
 
+
+            # GEOPY ORQALI QILINSIN
             lon1_r, lat1_r, lon2_r, lat2_r = map(radians, [lon1, lat1, lon2, lat2])
 
             dlon = lon2_r - lon1_r

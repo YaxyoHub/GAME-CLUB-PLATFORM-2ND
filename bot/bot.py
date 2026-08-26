@@ -14,6 +14,8 @@ from aiogram.types import (
     ReplyKeyboardRemove
 )
 
+# BOT QO'LDA YOZILSIN
+
 BOT_TOKEN = "YOUR_BOT_TOKEN"
 API_URL = "http://127.0.0.1:8000/api/bot-auth/"  # DRF API endpoint
 SITE_URL = "http://127.0.0.1:8000"              # DRF sayt manzili
