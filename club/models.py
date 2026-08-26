@@ -52,6 +52,7 @@ class Club(models.Model):
     def __str__(self):
         return f"{self.name} ({self.city})"
 
+
 class Images(models.Model):
     club = models.ForeignKey(
         Club, on_delete=models.CASCADE
@@ -63,6 +64,7 @@ class Images(models.Model):
         auto_now_add=True
     )
 
+
 class Type_Seat(models.Model):
     club = models.ForeignKey(
         Club,
@@ -70,12 +72,19 @@ class Type_Seat(models.Model):
     )
     type_title = models.CharField(max_length=20)
 
+    def __str__(self):
+        return self.type_title
+
+
 class Type_Room(models.Model):
     club = models.ForeignKey(
         Club,
         on_delete=models.CASCADE
     )
     type_title = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.type_title
 
 
 class Seat(models.Model):
@@ -117,6 +126,18 @@ class Seat(models.Model):
         return f"{self.name} ({self.type_seat}) - {self.club.name}"
 
 
+# Card modelini Booking'dan yuqoriga o'tkazdik
+class Card(models.Model):
+    payment = models.CharField(max_length=50, verbose_name="To'lov turi / Karta")
+
+    class Meta:
+        verbose_name = 'Karta / To\'lov usuli'
+        verbose_name_plural = 'Karta / To\'lov usullari'
+
+    def __str__(self):
+        return self.payment
+
+
 class Booking(models.Model):
 
     class Status(models.TextChoices):
@@ -144,17 +165,26 @@ class Booking(models.Model):
     )
     date = models.DateField(verbose_name='Sana')
     start_time = models.TimeField(verbose_name='Boshlanish vaqti')
-    end_time = models.TimeField(verbose_name='Tugash vaqti',
-                                null=True,
-                                blank=True)
+    end_time = models.TimeField(
+        verbose_name='Tugash vaqti',
+        null=True,
+        blank=True
+    )
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
         default=Status.BOOKED,
         verbose_name='Holat'
     )
-    payment_method = models.CharField(max_length=50, verbose_name="To'lov usuli",
-                                      null=True, blank=True)
+    # payment_method o'rniga Card modeli bilan ForeignKey ulandii
+    payment_method = models.ForeignKey(
+        Card,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bookings',
+        verbose_name="To'lov usuli (Karta)"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Yaratilgan vaqt')
 
     class Meta:
