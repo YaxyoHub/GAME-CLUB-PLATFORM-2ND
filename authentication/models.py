@@ -2,8 +2,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
 
-# Create your models here.
-
 
 class CustomUserManager(BaseUserManager):
     """
@@ -13,24 +11,34 @@ class CustomUserManager(BaseUserManager):
         if not phone_number:
             raise ValueError("Telefon raqami kiritilishi shart!")
         
+        extra_fields.setdefault('role', 'client')
+        
         user = self.model(phone_number=phone_number, **extra_fields)
+        
         if password:
             user.set_password(password)
         else:
-            user.set_unusable_password()  # Bot orqali kirganda parol shart emas
+            user.set_unusable_password()  
             
         user.save(using=self._db)
         return user
 
     def create_superuser(self, phone_number, password=None, **extra_fields):
+        """
+        Terminal orqali superuser yaratish uchun
+        """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        # Terminaldan yaratilganda rol avtomatik superadmin bo'ladi
+        extra_fields.setdefault('role', 'superadmin')
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser is_staff=True bo`lishi kerak.')
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser is_superuser=True bo`lishi kerak.')
+        if not password:
+            raise ValueError('Superuser uchun parol kiritilishi shart!')
 
         return self.create_user(phone_number, password, **extra_fields)
 
@@ -56,7 +64,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
-
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     payment = models.CharField(max_length=10, choices=PAYMENT_CHOICES, null=True, blank=True)
     address = models.CharField(max_length=255, blank=True, null=True)
@@ -70,12 +77,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['full_name']
 
     def __str__(self):
-        return f"{self.phone_number} - {self.full_name} - {self.role}"
-    
+        return f"{self.phone_number} - {self.full_name or 'Nomsiz'} - {self.role}"
+
 
 class OtpCode(models.Model):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE
+        User, on_delete=models.CASCADE, related_name='otp_codes'
     )
     phone_number = models.CharField(max_length=13)
     code = models.CharField(max_length=6)
@@ -85,8 +92,7 @@ class OtpCode(models.Model):
 
     def generate_code(self):
         import random
-        new_code = str(random.randint(100000, 999999))
-        return new_code
+        return str(random.randint(100000, 999999))
 
     def is_valid(self):
         """Kodni hali amal qilayotgani va ishlatilmaganini tekshirish"""
@@ -94,4 +100,3 @@ class OtpCode(models.Model):
 
     def __str__(self):
         return f"{self.phone_number} - {self.code}"
-
