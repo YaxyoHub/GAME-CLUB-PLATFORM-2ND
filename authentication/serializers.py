@@ -72,60 +72,20 @@ class TelegramBotAuthSerializer(serializers.Serializer):
     telegram_id = serializers.BigIntegerField()
     phone_number = serializers.CharField(max_length=13, required=False, allow_blank=True)
     full_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        telegram_id = attrs.get('telegram_id')
-        phone_number = attrs.get('phone_number')
-        full_name = attrs.get('full_name', 'Telegram User')
-
-        user = User.objects.filter(telegram_id=telegram_id).first()
-
-        if not user and phone_number:
-            user = User.objects.filter(phone_number=phone_number).first()
-            if user:
-                user.telegram_id = telegram_id
-                user.save()
-
-        if not user:
-            if not phone_number:
-                raise serializers.ValidationError("Yangi foydalanuvchi yaratish uchun telefon raqami shart!")
-            
-            user = User.objects.create_user(
-                phone_number=phone_number,
-                telegram_id=telegram_id,
-                full_name=full_name
-            )
-
-        if not user.is_active:
-            raise serializers.ValidationError("Foydalanuvchi hisobi faol emas!")
-
-        attrs['user'] = user
-        return attrs
-    
-from rest_framework import serializers
-from django.contrib.auth import get_user_model
-import re
-
-User = get_user_model()
-
-class TelegramBotAuthSerializer(serializers.Serializer):
-    telegram_id = serializers.BigIntegerField()
-    phone_number = serializers.CharField(max_length=13, required=False, allow_blank=True)
-    full_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     address = serializers.CharField(max_length=255, required=False, allow_blank=True)
 
     def validate(self, attrs):
-        telegram_id = attrs.get('telegram_id')
+        telegram_id = str(attrs.get('telegram_id'))
         phone_number = attrs.get('phone_number')
         full_name = attrs.get('full_name')
         address = attrs.get('address')
 
-        user = User.objects.filter(telegram_id=telegram_id).first()
+        user = User.objects.filter(telegram_chat_id=telegram_id).first()
 
         if not user and phone_number:
             user = User.objects.filter(phone_number=phone_number).first()
             if user:
-                user.telegram_id = telegram_id
+                user.telegram_chat_id = telegram_id
                 user.save()
 
         if not user:
@@ -134,7 +94,7 @@ class TelegramBotAuthSerializer(serializers.Serializer):
             
             user = User.objects.create_user(
                 phone_number=phone_number,
-                telegram_id=telegram_id,
+                telegram_chat_id=telegram_id,
                 full_name=full_name or "Telegram User",
                 address=address or ""
             )
@@ -144,4 +104,15 @@ class TelegramBotAuthSerializer(serializers.Serializer):
 
         attrs['user'] = user
         return attrs
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'phone_number', 'full_name', 'role', 'payment', 
+            'address', 'tg_username', 'is_active', 'date_joined'
+        ]
+        read_only_fields = ['id', 'phone_number', 'date_joined']
+
     

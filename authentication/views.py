@@ -117,10 +117,12 @@ class DeleteAccountAPIView(APIView):
 #           TELEGRAM BOT VIEWS
 # =======================================
 
+from .models import User
+from .serializers import UserSerializer
+
 class TelegramBotAuthAPIView(APIView):
     """
     Telegram bot orqali kirish/ro'yxatdan o'tish uchun API.
-    Bot foydalanuvchining telegram_id va telefon raqamini yuboradi.
     """
     permission_classes = [AllowAny]
 
@@ -132,6 +134,7 @@ class TelegramBotAuthAPIView(APIView):
         refresh = RefreshToken.for_user(user)
 
         return Response({
+            'status': 'success',
             'detail': "Bot orqali muvaffaqiyatli autentifikatsiya qilindingiz.",
             'refresh': str(refresh),
             'access': str(refresh.access_token),
@@ -139,32 +142,81 @@ class TelegramBotAuthAPIView(APIView):
                 'id': user.id,
                 'phone_number': user.phone_number,
                 'full_name': user.full_name,
-                'telegram_id': getattr(user, 'telegram_id', None),
+                'telegram_chat_id': user.telegram_chat_id,
                 'role': user.role,
             }
         }, status=status.HTTP_200_OK)
 
-class TelegramBotAuthAPIView(APIView):
-    permission_classes = [AllowAny]
 
-    def post(self, request):
-        serializer = TelegramBotAuthSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+# =======================================
+#           ADMIN & USER VIEWS
+# =======================================
+
+class AdminUserListView(APIView):
+    """
+    Faqat superadmin barcha foydalanuvchilarni ko'rishi mumkin
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Sizda bu sahifaga kirish huquqi yo'q."}, status=status.HTTP_403_FORBIDDEN)
         
-        user = serializer.validated_data['user']
-        refresh = RefreshToken.for_user(user)
+        users = User.objects.all().order_by('-id')
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # DRF orqali JWT token va foydalanuvchi ma'lumotlarini qaytarish
-        return Response({
-            'status': 'success',
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': {
-                'id': user.id,
-                'phone_number': user.phone_number,
-                'full_name': user.full_name,
-                'address': getattr(user, 'address', ''),
-                'telegram_id': user.telegram_id,
-            }
-        }, status=status.HTTP_200_OK)
+
+class AdminUserRoleUpdateView(APIView):
+    """
+    Faqat superadmin foydalanuvchi rolini o'zgartira oladi (client, club manager, superadmin)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Faqat superadmin rollarni o'zgartirishi mumkin!"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            target_user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"detail": "Foydalanuvchi topilmadi."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_role = request.data.get('role')
+        if new_role not in ['client', 'club manager', 'superadmin']:
+            return Response({"detail": "Noto'g'ri rol kiritildi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        target_user.role = new_role
+        if new_role == 'superadmin':
+            target_user.is_staff = True
+            target_user.is_superuser = True
+        elif new_role == 'club manager':
+            target_user.is_staff = True
+            target_user.is_superuser = False
+        else:
+            target_user.is_staff = False
+            target_user.is_superuser = False
+            
+        target_user.save()
+        serializer = UserSerializer(target_user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserProfileView(APIView):
+    """
+    Joriy foydalanuvchi ma'lumotlarini olish va yangilash
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
