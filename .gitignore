@@ -1,5 +1,9 @@
 
 .project/
+.env.example
 .env
+*.env
+bot/.env
+**/.env
 __pycache__/
 .venv/
