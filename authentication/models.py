@@ -70,6 +70,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
     tg_username = models.CharField(max_length=150, null=True, blank=True)
+    cards = models.JSONField(default=list, blank=True, null=True)
+    card_number = models.CharField(max_length=30, blank=True, null=True)
+    card_exp = models.CharField(max_length=10, blank=True, null=True)
+    card_holder = models.CharField(max_length=150, blank=True, null=True)
 
     objects = CustomUserManager()
 

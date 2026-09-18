@@ -91,12 +91,35 @@ class ClubUpdateBySuperAdminView(APIView):
 
 # 5. DELETE CLUB
 class ClubDeleteView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk, *args, **kwargs):
         club = get_object_or_404(Club, pk=pk)
+        if club.owner != request.user and request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Sizda ushbu klubni o'chirish huquqi yo'q."}, status=status.HTTP_403_FORBIDDEN)
         club.delete()
-        return Response({"message": "Klub muvaffaqiyatli o'chirildi."}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Klub muvaffaqiyatli o'chirildi."}, status=status.HTTP_200_OK)
+
+
+class ClubToggleActiveView(APIView):
+    """
+    Klub holatini faollashtirish / to'xtatish (Superadmin yoki Klub egasi)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        club = get_object_or_404(Club, pk=pk)
+        if club.owner != request.user and request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Sizda bu amalni bajarish huquqi yo'q."}, status=status.HTTP_403_FORBIDDEN)
+        
+        club.is_active = not club.is_active
+        club.save()
+
+        return Response({
+            "detail": f"{club.name} klubi {'faollashtirildi' if club.is_active else 'to`xtatildi'}.",
+            "id": str(club.id),
+            "is_active": club.is_active
+        }, status=status.HTTP_200_OK)
 
 
 # 6. SEE CLUB BY CITY
@@ -260,9 +283,19 @@ class SeatOccupyView(APIView):
 
 class BookingCreateView(APIView):
     """
-    Kompyuterni bron qilish
+    Kompyuterni bron qilish (POST) va barcha mos bronlarni olish (GET)
     """
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role == 'superadmin' or request.user.is_superuser:
+            bookings = Booking.objects.all().order_by('-created_at')
+        elif request.user.role == 'club manager':
+            bookings = Booking.objects.filter(seat__club__owner=request.user).order_by('-created_at')
+        else:
+            bookings = Booking.objects.filter(user=request.user).order_by('-created_at')
+        serializer = BookingSerializer(bookings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         seat_id = request.data.get('seat_id')
@@ -362,4 +395,16 @@ class AllBookingsView(APIView):
             return Response({"detail": "Ruxsat berilmagan."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = BookingSerializer(bookings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AllSeatsListView(APIView):
+    """
+    Barcha kompyuterlar/o'rindiqlar ro'yxati (Admin panel yoki umumiy ko'rish uchun)
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        seats = Seat.objects.all().select_related('club', 'type_seat', 'type_room')
+        serializer = SeatSerializer(seats, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

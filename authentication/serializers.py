@@ -78,7 +78,33 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             'address', 
             'latitude', 
             'longitude', 
-            'tg_username'
+            'tg_username',
+            'cards',
+            'card_number',
+            'card_exp',
+            'card_holder'
+        ]
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """Admin panelda foydalanuvchilar ro'yxatini ko'rish uchun serializer"""
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'phone_number',
+            'full_name',
+            'role',
+            'payment',
+            'address',
+            'tg_username',
+            'avatar',
+            'is_active',
+            'date_joined',
+            'cards',
+            'card_number',
+            'card_exp',
+            'card_holder'
         ]
 
 

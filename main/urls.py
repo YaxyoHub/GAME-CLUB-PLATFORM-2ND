@@ -11,6 +11,8 @@ from authentication.views import (
     DeleteAccountAPIView,
     AdminUserListView,
     AdminUserRoleUpdateView,
+    AdminUserToggleActiveView,
+    AdminUserDeleteView,
     UserProfileView,
     TelegramBotAuthAPIView
 )
@@ -21,10 +23,12 @@ from club.views import (
     ClubCreateView, 
     ClubUpdateByManagerView,
     ClubUpdateBySuperAdminView, 
-    ClubDeleteView, 
+    ClubDeleteView,
+    ClubToggleActiveView,
     ClubByCityView,
     ClubByLocationView,
     ClubSeatsView,
+    AllSeatsListView,
     SeatReleaseView,
     SeatOccupyView,
     BookingCreateView,
@@ -51,6 +55,8 @@ urlpatterns = [
     # Admin User Management endpoints
     path('users/', AdminUserListView.as_view(), name='admin-users-list'),
     path('users/<int:pk>/role/', AdminUserRoleUpdateView.as_view(), name='admin-user-role-update'),
+    path('users/<int:pk>/toggle-active/', AdminUserToggleActiveView.as_view(), name='admin-user-toggle-active'),
+    path('users/<int:pk>/delete/', AdminUserDeleteView.as_view(), name='admin-user-delete'),
 
     # Club endpoints
     path('clubs/', ClubListView.as_view(), name='club-list'),
@@ -62,8 +68,10 @@ urlpatterns = [
     path('clubs/<uuid:pk>/update/manager/', ClubUpdateByManagerView.as_view(), name='club-update-manager'),
     path('clubs/<uuid:pk>/update/admin/', ClubUpdateBySuperAdminView.as_view(), name='club-update-admin'),
     path('clubs/<uuid:pk>/delete/', ClubDeleteView.as_view(), name='club-delete'),
+    path('clubs/<uuid:pk>/toggle-active/', ClubToggleActiveView.as_view(), name='club-toggle-active'),
 
     # Seat Management endpoints
+    path('seats/', AllSeatsListView.as_view(), name='all-seats'),
     path('seats/<uuid:pk>/release/', SeatReleaseView.as_view(), name='seat-release'),
     path('seats/<uuid:pk>/occupy/', SeatOccupyView.as_view(), name='seat-occupy'),
 

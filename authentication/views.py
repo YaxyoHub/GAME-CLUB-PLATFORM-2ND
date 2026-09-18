@@ -1,3 +1,5 @@
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,8 +12,11 @@ from .serializers import (
     LogoutSerializer, 
     RegisterSerializer,
     TelegramBotAuthSerializer,
-    UserUpdateSerializer  # <- Yangi serializer qo'shildi
+    UserUpdateSerializer,
+    UserListSerializer
 )
+
+User = get_user_model()
 
 # =======================================
 #        AUTHENTICATION & USER VIEWS
@@ -85,7 +90,7 @@ class LogoutAPIView(APIView):
             )
 
 
-class EditAccountAPIView(APIView):
+class UserProfileView(APIView):
     """
     Foydalanuvchi profil ma'lumotlarini ko'rish (GET) 
     va tahrirlash/yangilash (PATCH / PUT) uchun API.
@@ -94,7 +99,7 @@ class EditAccountAPIView(APIView):
 
     def get(self, request):
         """Profil ma'lumotlarini olish"""
-        serializer = UserUpdateSerializer(request.user)
+        serializer = UserListSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request):
@@ -105,8 +110,103 @@ class EditAccountAPIView(APIView):
 
         return Response({
             'detail': "Profil ma'lumotlari muvaffaqiyatli yangilandi.",
-            'user': serializer.data
+            'user': UserListSerializer(request.user).data
         }, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        return self.patch(request)
+
+# Orqaga moslik uchun
+EditAccountAPIView = UserProfileView
+
+
+class AdminUserListView(APIView):
+    """
+    Superadmin uchun barcha foydalanuvchilar ro'yxatini olish API.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Faqat superadmin foydalanuvchilar ro'yxatini ko'rishi mumkin."}, status=status.HTTP_403_FORBIDDEN)
+        
+        users = User.objects.all().order_by('-date_joined')
+        serializer = UserListSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminUserRoleUpdateView(APIView):
+    """
+    Superadmin uchun foydalanuvchi rolini o'zgartirish API.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Faqat superadmin rolni o'zgartirishi mumkin."}, status=status.HTTP_403_FORBIDDEN)
+
+        target_user = get_object_or_404(User, pk=pk)
+        new_role = request.data.get('role')
+
+        allowed_roles = [choice[0] for choice in User.ROLE_CHOICES]
+        if new_role not in allowed_roles:
+            return Response(
+                {"detail": f"Noto'g'ri rol! Ruxsat etilgan rollar: {', '.join(allowed_roles)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        target_user.role = new_role
+        # Agar superadmin qilinsa, is_staff ham berilishi mumkin
+        if new_role == 'superadmin':
+            target_user.is_staff = True
+        target_user.save()
+
+        return Response({
+            'detail': f"{target_user.phone_number} foydalanuvchi roli '{new_role}' ga muvaffaqiyatli o'zgartirildi.",
+            'id': target_user.id,
+            'role': target_user.role,
+            'phone_number': target_user.phone_number,
+            'full_name': target_user.full_name
+        }, status=status.HTTP_200_OK)
+
+
+class AdminUserToggleActiveView(APIView):
+    """
+    Superadmin uchun foydalanuvchini bloklash / faollashtirish API.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Faqat superadmin bajara oladi."}, status=status.HTTP_403_FORBIDDEN)
+        
+        target_user = get_object_or_404(User, pk=pk)
+        target_user.is_active = not target_user.is_active
+        target_user.save()
+
+        return Response({
+            "detail": f"{target_user.phone_number} holati {'faollashtirildi' if target_user.is_active else 'bloklandi'}.",
+            "id": target_user.id,
+            "is_active": target_user.is_active
+        }, status=status.HTTP_200_OK)
+
+
+class AdminUserDeleteView(APIView):
+    """
+    Superadmin uchun foydalanuvchini tizimdan o'chirish API.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if request.user.role != 'superadmin' and not request.user.is_superuser:
+            return Response({"detail": "Faqat superadmin bajara oladi."}, status=status.HTTP_403_FORBIDDEN)
+        
+        target_user = get_object_or_404(User, pk=pk)
+        if target_user == request.user:
+            return Response({"detail": "O'z hisobingizni bu yerdan o'chira olmaysiz."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        target_user.delete()
+        return Response({"detail": "Foydalanuvchi muvaffaqiyatli o'chirildi."}, status=status.HTTP_200_OK)
 
 
 class DeleteAccountAPIView(APIView):
